@@ -1,11 +1,11 @@
 #include "VGA.h"
-
+#include <esp_log.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_rgb.h>
 #include <esp_async_memcpy.h>
 
 const async_memcpy_config_t async_mem_cfg = {
-        .backlog = 8,
+        .backlog = 16,
         .sram_trans_align = 64,
         .psram_trans_align = 64,
         .flags = 0
@@ -16,7 +16,7 @@ async_memcpy_t async_mem_handle;
 #define VGA_PIN_NUM_VSYNC          19
 #define VGA_PIN_NUM_DE             -1 //LCD only(optional)
 
-#define VGA_PIN_NUM_PCLK           -1  //For LCD needed real IO-pin
+#define VGA_PIN_NUM_PCLK           -1// any unused pin. For LCD needed real IO-pin
 #define VGA_PIN_NUM_DATA0          10 //B0
 #define VGA_PIN_NUM_DATA1          11 //B1
 #define VGA_PIN_NUM_DATA2          12 //B2
@@ -40,6 +40,7 @@ bool VGA::init(){
 }
 bool VGA::init(int width, int height) {
   esp_async_memcpy_install(&async_mem_cfg,&async_mem_handle);
+  // temp replace
   _Width = width;
   _Height = height;
   _bounceLinesBuf = height / 10;
@@ -52,7 +53,7 @@ bool VGA::init(int width, int height) {
   memset(&panel_config, 0, sizeof(esp_lcd_rgb_panel_config_t));
   panel_config.data_width = 16;
   panel_config.bits_per_pixel=16;
-  //panel_config.psram_trans_align = 64;
+  panel_config.psram_trans_align = 64;
   panel_config.dma_burst_size = 64;
   panel_config.num_fbs = 0;
   panel_config.clk_src = LCD_CLK_SRC_PLL240M;
@@ -86,7 +87,7 @@ bool VGA::init(int width, int height) {
   panel_config.timings.hsync_pulse_width =96;
   panel_config.timings.vsync_back_porch  =33;
   panel_config.timings.vsync_front_porch =10;
-  panel_config.timings.vsync_pulse_width =2;
+  panel_config.timings.vsync_pulse_width = 2;
   panel_config.timings.flags.pclk_active_neg = false;
   panel_config.timings.flags.hsync_idle_low = 0;
   panel_config.timings.flags.vsync_idle_low = 0;
@@ -115,8 +116,9 @@ bool VGA::init(int width, int height) {
 
 
 void VGA::vsyncWait() {
+  // get draw semaphore
     xSemaphoreGive(_sem_gui_ready);
-    xSemaphoreTake(_sem_vsync_end, 1);//portMAX_DELAY);
+    xSemaphoreTake(_sem_vsync_end, 0);//portMAX_DELAY);
 }
 
 uint16_t* VGA::getDrawBuffer() {
@@ -174,8 +176,8 @@ void VGA::clear()
 
 void VGA::xLine(int x0, int x1, int y, uint16_t color)
   {
-    if (y < 0 || y >= _Height)
-      return;
+
+    if (y < 0 || y >= _Height) return;
     if (x0 > x1)
     {
       int xb = x0;
@@ -186,7 +188,11 @@ void VGA::xLine(int x0, int x1, int y, uint16_t color)
       x0 = 0;
     if (x1 > _Width)
       x1 = _Width;
-    for (int x = x0; x < x1; x++) dot(x, y, color);
+    uint16_t *ptr = (uint16_t *)getDrawBuffer();
+    ptr+=x0;
+    ptr+=y*_Width;
+    for (int i = x0; i < x1; i++){*ptr=color;ptr++;}
+  
 }
 
 void VGA::triangle(short *v0, short *v1, short *v2, int color)
@@ -424,6 +430,7 @@ void VGA::fillEllipse(int x, int y, int rx, int ry, int color)
     }
   }
 
+
 void VGA::drawChar(int x, int y, int ch)
     {
         if (!font)
@@ -630,3 +637,16 @@ void VGA::println(double number, int fractionalDigits, int minCharacters)
     print(number, fractionalDigits, minCharacters); 
     print("\n");
   }
+
+uint16_t VGA::rgb(uint8_t r, uint8_t g, uint8_t b)
+{
+    return (r >> 3) | ((g >> 2) << 5) | ((b >> 3) << 11);
+}
+
+void VGA::cpLine(int x,int y ,int len,uint16_t* line){
+  uint16_t * line_ptr = (uint16_t *)line;
+  uint16_t * ptr = (uint16_t *)getDrawBuffer();
+  ptr+=x;
+  ptr+=y*_Width;
+  memcpy(ptr,line_ptr,len*2);  
+}
