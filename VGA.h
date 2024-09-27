@@ -3,6 +3,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
+#include <GfxWrapper.h>
+
 
 class Font
 {
@@ -83,8 +85,8 @@ void println(unsigned char number, int base = 10, int minCharacters = 1);
 void print(double number, int fractionalDigits = 2, int minCharacters = 1);
 void println(double number, int fractionalDigits = 2, int minCharacters = 1);
 void println();
-
-
+uint16_t rgb(uint8_t r, uint8_t g, uint8_t b);
+void cpLine(int x,int y ,int len,uint16_t* line);
 protected:
   SemaphoreHandle_t _sem_vsync_end;
   SemaphoreHandle_t _sem_gui_ready;
