@@ -5,7 +5,6 @@
 #include <freertos/semphr.h>
 
 
-
 class Font
 {
   public:
@@ -51,6 +50,7 @@ bool autoScroll=true;
 //inline graphics & print functions
 void dot(int x, int y, uint16_t color);
 void clear();
+void clear(int color);
 void xLine(int x0, int x1, int y, uint16_t color);
 void triangle(short *v0, short *v1, short *v2, int color);
 void line(int x1, int y1, int x2, int y2, uint16_t color);
@@ -87,6 +87,8 @@ void println(double number, int fractionalDigits = 2, int minCharacters = 1);
 void println();
 uint16_t rgb(uint8_t r, uint8_t g, uint8_t b);
 void cpLine(int x,int y ,int len,uint16_t* line);
+void vLine(int x,int y, int h, uint16_t color);
+void drawRGBBitmap(int x,int y,uint16_t* bitmap,int w,int h);
 protected:
   SemaphoreHandle_t _sem_vsync_end;
   SemaphoreHandle_t _sem_gui_ready;
