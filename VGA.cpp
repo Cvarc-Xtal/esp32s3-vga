@@ -95,7 +95,7 @@ bool VGA::init(int width, int height) {
   panel_config.flags.double_fb = 0;
   panel_config.flags.no_fb = 1;
   esp_lcd_new_rgb_panel(&panel_config, &_panel_handle);
-  int fbSize = _Width*_Height*2; //two bytes on pixel (RGB565 pixel format)
+  int fbSize = _Width*_Height*sizeof(uint16_t); //two bytes on pixel (RGB565 pixel format)
   for (int i = 0; i < 2; i++) {
         _frBuf[i] = (uint16_t*)heap_caps_aligned_alloc(64,fbSize,MALLOC_CAP_SPIRAM);
         assert(_frBuf[i]);
@@ -171,7 +171,11 @@ void VGA::dot(int x, int y, uint16_t color){
 void VGA::clear()
   {
     uint16_t *ptr = (uint16_t *)getDrawBuffer();
-    memset(ptr, 0,_Width* _Height*2);
+    memset(ptr, 0,_Width* _Height*sizeof(uint16_t));
+}
+
+void VGA::clear(int color){
+  fillRect(0,0,_Width,_Height,color);
 }
 
 void VGA::xLine(int x0, int x1, int y, uint16_t color)
@@ -193,6 +197,36 @@ void VGA::xLine(int x0, int x1, int y, uint16_t color)
     ptr+=y*_Width;
     for (int i = x0; i < x1; i++){*ptr=color;ptr++;}
   
+}
+
+
+void VGA::vLine(int x,int y, int h, uint16_t color){
+  uint16_t *ptr = (uint16_t *)getDrawBuffer();
+  ptr+=x;
+  ptr+=y*_Width;
+  for(int i = 0; i < h;i++){
+    *ptr=color;
+    ptr+=_Width;
+  }
+}
+
+void VGA::cpLine(int x,int y ,int len,uint16_t* line){
+  uint16_t * line_ptr = (uint16_t *)line;
+  uint16_t * ptr = (uint16_t *)getDrawBuffer();
+  ptr+=x;
+  ptr+=y*_Width;
+  memcpy(ptr,line_ptr,len*sizeof(uint16_t));  
+}
+
+void VGA::drawRGBBitmap(int x,int y,uint16_t* bitmap,int w,int h){
+  uint16_t * bitmap_ptr = (uint16_t *)bitmap;
+  uint16_t * ptr = (uint16_t *)getDrawBuffer();
+  ptr+=x;ptr+=y*_Width;
+  for(int i=0;i<h;i++){
+    memcpy(ptr,bitmap_ptr,w*sizeof(uint16_t));
+    bitmap_ptr+=w;
+    ptr+=_Width;
+  }
 }
 
 void VGA::triangle(short *v0, short *v1, short *v2, int color)
@@ -358,10 +392,10 @@ void VGA::fillRect(int x, int y, int w, int h, uint16_t color)
 
 void VGA::rect(int x, int y, int w, int h, int color)
   {
-    fillRect(x, y, w, 1, color);
-    fillRect(x, y, 1, h, color);
-    fillRect(x, y + h - 1, w, 1, color);
-    fillRect(x + w - 1, y, 1, h, color);
+    xLine(x,x+w,y,color);
+    vLine(x, y, h, color);
+    xLine(x,x+w,y+h-1,color);
+    vLine(x + w - 1, y, h, color);
   }
 
 void VGA::circle(int x, int y, int r, int color)
@@ -640,13 +674,5 @@ void VGA::println(double number, int fractionalDigits, int minCharacters)
 
 uint16_t VGA::rgb(uint8_t r, uint8_t g, uint8_t b)
 {
-    return (r >> 3) | ((g >> 2) << 5) | ((b >> 3) << 11);
-}
-
-void VGA::cpLine(int x,int y ,int len,uint16_t* line){
-  uint16_t * line_ptr = (uint16_t *)line;
-  uint16_t * ptr = (uint16_t *)getDrawBuffer();
-  ptr+=x;
-  ptr+=y*_Width;
-  memcpy(ptr,line_ptr,len*2);  
+    return (r) | (g) | (b);
 }
